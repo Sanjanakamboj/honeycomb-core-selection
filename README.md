@@ -135,6 +135,12 @@ Areal mass spans **2.760 – 3.760 kg/m²**; total deflection spans **1.222 – 
 in L and **1.248 – 1.441 mm** in W. All ten configurations pass the illustrative
 `span/1000 = 1.5 mm` limit.
 
+Note that the selected (lightest) configuration is **not** the stiffest — it ranks
+7th of 10 on deflection. Nor is deflection a pure mass trend: HC-AR-48 is heavier
+than HC-AL-45 yet deflects *more*, because the bending term is identical for every
+candidate and the only thing that varies is the core shear term `δ_s = P·L/(4κ·G_eff·A_s)`.
+Static deflection here is a **core shear-stiffness** trade, not a mass trade.
+
 Because the core carries no bending normal stiffness, `EI` and the bending
 deflection are *identical* across candidates. Only two things move: areal mass
 (through `ρ_c·t_c`) and shear deflection (through `G_eff`). For the same geometry
@@ -204,6 +210,14 @@ only mode 1 is used as a screen.
 illustrative **25 Hz** minimum — all ten pass. The bending-only frequency is
 bit-for-bit identical between L and W; only the shear correction differs.
 
+The lightest core (HC-AL-30, and the *lowest* `G_eff` of the set) gives the highest
+frequency: `EI` is face-dominated and common to every candidate, so the core moves
+only the distributed mass and the shear correction — and over this range the mass
+penalty of a denser core outweighs its shear-stiffness benefit.
+**This ordering is specific to the current geometry, face-sheet design and
+illustrative candidate data. It is not a universal honeycomb trend** — a thinner
+face, a longer span or a softer core set could reverse it.
+
 ## Integrated candidate trade
 
 Four requirement families in four different units, combined **only** by logical
@@ -229,8 +243,13 @@ For cross-mode comparison the model reports dimensionless **utilisations**
 | HC-AL-60 [W] | 0.854 | 0.017 | 0.002 | 0.007 | **0.882** | frequency |
 | HC-AL-80 [W] | 0.832 | 0.017 | 0.001 | 0.005 | **0.923** | frequency |
 
-The local patch utilisation (0.13 for every candidate) belongs to an independent
-load case and is reported separately, never mixed into this comparison.
+**The local-patch core-compression utilisation is deliberately not plotted or
+tabulated here.** It belongs to an *independent* local load case (100 N on a
+25 × 25 mm footprint) with no defined physical relationship to the global 50 N
+central load, so blending it into this comparison would imply a simultaneity the
+model never assumes. Reported separately, it runs 0.025 – 0.133 across the
+candidates: the patch *pressure* is the same 160 kPa for all of them, but each core
+has a different compressive allowable.
 
 For the two heaviest cores the **frequency** screen is closest to critical — the
 only screen other than deflection ever to become critical in this study.

@@ -159,8 +159,13 @@ def figure_1_mass_vs_deflection() -> None:
 
     ax.set_xlabel("panel areal mass  $m_A$  [kg/m$^2$]")
     ax.set_ylabel("total deflection at 50 N  $\\delta$  [mm]")
-    ax.set_title("Static stiffness trade: heavier, shear-stiffer cores deflect less\n"
-                 "(every configuration passes the illustrative limit)", fontsize=10)
+    # Deflection differences across candidates come ENTIRELY from the core shear
+    # term: the bending term is identical for all of them. So this is a shear-
+    # stiffness trade, not a mass trade - HC-AR-48 is heavier than HC-AL-45 yet
+    # deflects more, because its G is lower.
+    ax.set_title("Static stiffness trade: the selected lightest core is NOT the stiffest\n"
+                 "deflection is set by core shear modulus, not mass "
+                 "(all configurations pass)", fontsize=10)
     ax.set_xlim(2.6, 4.35)
     ax.set_ylim(1.18, 1.53)
     _candidate_legend(ax, "upper right")
@@ -250,8 +255,12 @@ def figure_4_core_thickness_trade() -> None:
     ax_top.set_ylabel("areal mass  $m_A$  [kg/m$^2$]")
     ax_top.set_ylim(2.2, 3.7)
     ax_top.legend(loc="upper left", fontsize=8)
-    ax_top.set_title("Core-depth trade (HC-AL-45): depth buys frequency cheaply\n"
-                     "mass grows linearly, $f_1$ grows because $EI \\sim t_c^2$", fontsize=10)
+    # "EI ~ t_c^2" would be an overstatement: with finite face thickness EI rises
+    # by 8.5x from 10 to 30 mm rather than the 9x an exact square law gives, mass
+    # rises 1.35x, and the shear flexibility ratio worsens with depth. All three
+    # act on f_1; the net effect is the computed curve below.
+    ax_top.set_title("Core-depth trade (HC-AL-45): increased face separation raises\n"
+                     "stiffness faster than mass, so $f_1$ rises", fontsize=10)
 
     ax_bot.plot(thicknesses, [a.modal.frequency for a in data["L"]],
                 marker="o", color="#1b6ca8", linewidth=1.6, label="$f_1$, L orientation")
