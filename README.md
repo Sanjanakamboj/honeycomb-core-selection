@@ -18,6 +18,13 @@ Preliminary sandwich-panel core selection for a spacecraft solar-panel substrate
 > indentation, shear crimping, detailed inserts and potting, fastener bearing,
 > adhesive failure and global buckling remain intentionally deferred.**
 
+> **Milestone 5 introduces a first-order free-vibration screening requirement
+> because the prior static screens retained every candidate. The frequency
+> threshold and all material properties remain illustrative.**
+
+> **The selected configuration is an illustrative preliminary choice within this
+> simplified candidate set, not a flight-qualified material selection.**
+
 ---
 
 ## Objective
@@ -83,11 +90,24 @@ Added in **Milestone 4** (sandwich-specific local failure screening):
 - local-load and patch-size sensitivities, and a core-depth wrinkling trade
 - candidate retention classification
 
-Deliberately **not** implemented yet: final core selection or recommendation, local
-indentation, shear crimping, intracell buckling, detailed insert and potting design,
-fastener bearing, adhesive failure, panel global buckling, damage tolerance,
-fatigue, thermal distortion, CTE mismatch, vibration and modal analysis,
-environmental knockdowns, optimisation, final portfolio plots and publication polish.
+Added in **Milestone 5** (modal screening and preliminary selection):
+
+- distributed panel mass per unit length from the Milestone 1 mass model
+- bending-only simply-supported natural frequency (Euler-Bernoulli reference)
+- an audited first-order core-shear flexibility correction
+- directional L/W modal comparison and a frequency-to-areal-mass indicator
+- an explicit illustrative minimum-frequency requirement with PASS/FAIL and margin
+- integrated four-way feasibility, with dimensionless utilisations for cross-mode
+  comparison
+- core-depth, density, shear-modulus and face-thickness modal sensitivities
+- requirement and static-limit robustness sweeps
+- a deterministic **illustrative preliminary core selection**
+
+Deliberately **not** implemented yet: detailed insert and potting design, fastener
+bearing, adhesive failure, local indentation, shear crimping, intracell buckling,
+panel global buckling, damage tolerance, fatigue, thermal distortion, CTE mismatch,
+environmental knockdowns, forced/random/acoustic vibration response, optimisation,
+final portfolio figures and publication polish.
 
 ## Sandwich idealisation
 
@@ -280,7 +300,7 @@ face thickness buys stiffness and stress margin but pays directly in mass;
 
 ## Verification summary — Milestone 1
 
-`134 tests` (of `590` in the repository), all passing, unchanged since the
+`134 tests` (of `740` in the repository), all passing, unchanged since the
 Milestone 1 commit. Expected values are written as **independent arithmetic** —
 literal formulas or hand-computed constants — rather than by calling the helpers
 under test.
@@ -501,7 +521,7 @@ it is a core-material question. Core depth is **not** optimised in this mileston
 
 ## Verification summary — Milestone 2
 
-`139 additional tests` (repository total `590`, all passing). Milestone 1's 134
+`139 additional tests` (repository total `740`, all passing). Milestone 1's 134
 tests are unchanged and still green; their files are byte-identical to the
 Milestone 1 commit.
 
@@ -736,7 +756,7 @@ a ~48× gap over this range. Core depth is **not** optimised here.
 
 ## Verification summary — Milestone 3
 
-`160 additional tests` (repository total `590`, all passing). The 273 Milestone 1–2
+`160 additional tests` (repository total `740`, all passing). The 273 Milestone 1–2
 tests are unchanged and still green; their files are byte-identical to the
 Milestone 2 commit, and the only prior source file touched is `__init__.py`
 (exports and version).
@@ -1064,7 +1084,7 @@ No core is selected.
 
 ## Verification summary — Milestone 4
 
-`157 additional tests` (repository total `590`, all passing). The 433 Milestone 1–3
+`157 additional tests` (repository total `740`, all passing). The 433 Milestone 1–3
 tests are unchanged and still green; their files are byte-identical to the
 Milestone 3 commit, and the only prior source file touched is `__init__.py`
 (exports and version).
@@ -1102,6 +1122,321 @@ Covered:
 - determinism of assessments, tables and sweeps
 - example smoke test, plus assertions that it declares no selection and states its
   deferrals
+
+---
+
+# Milestone 5 — modal screening and the illustrative preliminary core selection
+
+> **Milestone 5 introduces a first-order free-vibration screening requirement
+> because the prior static screens retained every candidate. The frequency
+> threshold and all material properties remain illustrative.**
+
+The engineering question:
+
+> Static deflection, global strength and local sandwich-failure checks all retain
+> every candidate. Does the candidate core materially change the panel's
+> fundamental bending frequency enough to drive a practical core choice?
+
+**Answer: yes — and the discriminating variable turns out to be mass, not shear
+stiffness.**
+
+## Why modal screening was introduced
+
+Four milestones of static screening produced no discrimination whatsoever:
+deflection governed every configuration by 48× to 1200× over every strength and
+stability mode, and all ten candidate-direction configurations survived every
+check. Adding more failure modes was not going to select a core.
+
+Free vibration changes the picture for one structural reason: **core density
+enters the frequency directly through the distributed mass**, whereas it never
+entered the static bending response at all. `EI` is face-dominated and identical
+across candidates, so under static load a denser core is pure penalty-free
+stiffness in shear. Under vibration it is carried mass.
+
+## Beam-strip modal formulation
+
+Uniform, simply supported, one transverse bending plane, self-mass only.
+
+### Distributed mass
+
+```
+mu = m_A * b        [kg/m]
+```
+
+straight from the Milestone 1 mass model — bare faces plus core, no solar cells,
+adhesive, harness or mechanisms.
+
+### Bending-only reference (Euler-Bernoulli)
+
+```
+k_n     = n pi / L
+omega_n = k_n^2 sqrt(EI / mu)
+f_n     = omega_n / (2 pi)          so  f_1 = (pi / (2 L^2)) sqrt(EI / mu)
+```
+
+Verified against independent arithmetic, and against exact `n²`, `sqrt(EI)`,
+`1/sqrt(mu)` and `1/L²` scaling.
+
+### Shear-flexibility correction
+
+The static model already carries bending *and* core-shear compliance, so the modal
+layer must not pretend the strip is Euler-Bernoulli. Neglecting rotary inertia:
+
+```
+omega_n^2 = EI k_n^4 / [ mu (1 + EI k_n^2 / (kappa G_eff A_s)) ]
+```
+
+with `A_s = b t_c` and the Milestone 1 convention `kappa = 1.0`.
+
+**This form was audited before anything was built on it** (§37 of the milestone
+brief), not adopted on sight:
+
+- **Dimensions.** `EI k^4` is kg/(m·s²), so `EI k^4 / mu` is 1/s². `EI k^2` is N
+  and `G_eff A_s` is N, so the correction term is dimensionless. No missing length
+  factor.
+- **Physical provenance.** Under a static sinusoidal load `q0 sin(kx)` on the same
+  strip, `w_bending = q0/(EI k^4)` and `w_shear = q0/(kappa G_eff A_s k^2)`, so
+  `w_shear / w_bending = EI k^2 / (kappa G_eff A_s)` — *exactly* the correction
+  term. The formula is `omega² = (1 / total compliance) / mu`: the same
+  bending-plus-shear compliance Milestone 1 already uses, expressed modally. It is
+  consistent with the existing mechanics, not an unrelated import.
+- **Limits**, all verified by test: `G_eff → ∞` recovers Euler-Bernoulli (from
+  below); `G_eff → 0` and `EI → 0` both drive the frequency to zero; `mu` up
+  lowers it as `1/sqrt(mu)`; `G_eff` up raises it monotonically.
+
+Rotary inertia is neglected, so the shear penalty degrades at high mode number.
+Only mode 1 is used as a design screen.
+
+## Directional behaviour
+
+`EI` and mass do not depend on shear direction, so the **bending-only frequency is
+bit-for-bit identical between L and W**. Only the shear correction differs, and
+`f_1,L > f_1,W` always because `G_L > G_W`.
+
+| candidate | `f_bending` [Hz] | `f_1,L` [Hz] | `f_1,W` [Hz] | penalty [Hz] | penalty [%] |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HC-AL-30 | 32.078 | 31.100 | 29.787 | 1.313 | −4.22 |
+| HC-AL-45 | 30.465 | 29.990 | 29.244 | 0.746 | −2.48 |
+| HC-AR-48 | 30.170 | 29.548 | 29.033 | 0.515 | −1.74 |
+| HC-AL-60 | 29.073 | 28.811 | 28.357 | 0.454 | −1.58 |
+| HC-AL-80 | 27.483 | 27.338 | 27.101 | 0.237 | −0.87 |
+
+Unlike the static shear deflection, there is **no clean ratio identity** here —
+bending stiffness and mass both contribute — and a test asserts the frequency
+ratio is strictly between 1 and `G_L/G_W`. The softest core pays the largest
+directional penalty, as expected.
+
+## The headline result
+
+> **The lightest core has the highest frequency in both directions, despite having
+> the lowest shear modulus of the set.**
+
+Added core mass costs more frequency than the extra shear stiffness buys back.
+This was computed, not assumed, and it is locked down by test. It reverses the
+Milestone 2 intuition, where heavier/stiffer cores gave lower static deflection.
+
+Candidate `f_1` spans **27.101 – 31.100 Hz** across all ten configurations, and
+`mu` spans 1.380 – 1.880 kg/m.
+
+## Illustrative frequency requirement
+
+```
+FrequencyRequirement(minimum_frequency_hz, mode_number=1, label)
+
+margin_hz         = f_actual - f_required          positive is good
+normalised_margin = f_actual / f_required - 1
+PASS when f_actual >= f_required                   (exact equality passes)
+```
+
+The canonical value is **25 Hz**, chosen *after* computing the candidate range and
+deliberately set as a clean round value **below that whole range**, so it cannot
+manufacture a winner by excluding part of the set. It is an
+`illustrative minimum fundamental-frequency requirement` — **not** a
+launch-provider requirement, not a coupled-loads result, not a qualification
+threshold.
+
+At 25 Hz **all ten configurations pass.** The modal screen only begins to
+discriminate above ~28 Hz.
+
+## Integrated feasibility
+
+Four margin families, in four different units, combined **only** by logical AND:
+
+```
+overall_feasible = deflection AND global_strength AND local_failure AND modal
+```
+
+- deflection margin — a **length** [m]
+- global strength margins — dimensionless
+- local failure margins — dimensionless
+- frequency margin — a **frequency** [Hz]
+
+No numerical minimum, sum or average is ever taken across them, and a test asserts
+no blended-margin attribute exists.
+
+### Cross-mode comparison by utilisation
+
+Because the raw margins are not comparable, the module reports dimensionless
+**utilisations** (demand / capacity, so `<= 1` passes):
+
+```
+deflection  = delta / delta_allowable          face_yield = sigma / sigma_allowable
+core_shear  = tau / tau_allowable              wrinkling  = sigma_face / sigma_wr
+frequency   = f_required / f_actual
+core_compression (local patch) - reported SEPARATELY, independent load case
+```
+
+| configuration | closest global screen | utilisation |
+| --- | :--- | ---: |
+| HC-AL-30 [L] | deflection | 0.8669 |
+| HC-AL-45 [L] | deflection | 0.8357 |
+| HC-AR-48 [L] | deflection | 0.8461 |
+| HC-AL-60 [L] | **frequency** | 0.8677 |
+| HC-AL-80 [L] | **frequency** | 0.9145 |
+| HC-AL-30 [W] | deflection | 0.9607 |
+| HC-AL-45 [W] | deflection | 0.8878 |
+| HC-AR-48 [W] | deflection | 0.8826 |
+| HC-AL-60 [W] | **frequency** | 0.8816 |
+| HC-AL-80 [W] | **frequency** | 0.9225 |
+
+**For the two heaviest cores the frequency screen is now the closest constraint** —
+the first time in five milestones that anything other than deflection has been
+critical for any configuration.
+
+## Sensitivities
+
+**Core depth** (HC-AL-45, L): `f_1` rises steeply and monotonically from
+**9.101 Hz at 5 mm to 41.419 Hz at 30 mm**, because `EI` grows roughly as `t_c²`
+while mass grows only linearly. The shear flexibility ratio *also* rises with depth
+(`EI` outgrows `A_s`), so the shear penalty grows — but the bending gain dominates
+by far. Core depth is not optimised.
+
+**Density** (G fixed): `EI` unchanged, `mu` linear, `f_1` falls monotonically
+32.165 → 25.721 Hz over 25 → 100 kg/m³.
+
+**Shear modulus** (density fixed): mass and the bending-only frequency untouched;
+`f_1` rises monotonically and the shear penalty falls from **10.76 % at 5 MPa to
+0.13 % at 500 MPa**, approaching the bending-only asymptote from below.
+
+**Face thickness**: both `EI` and face mass rise. Stiffness wins over this range,
+so `f_1` increases monotonically 26.311 → 31.631 Hz — computed, not assumed — and
+the gain flattens because `EI/mu` tends to a constant once the faces dominate the
+mass.
+
+**Multi-mode**: the bending-only reference scales exactly as `n²`; the corrected
+values fall increasingly short (penalty 1.56 % / 5.84 % / 11.87 % for modes 1–3),
+because the correction term also grows as `n²`.
+
+## Requirement sensitivity — and why it matters
+
+Both screening thresholds are placeholders, so their influence is measured rather
+than assumed.
+
+| `f_required` [Hz] | feasible | lightest feasible |
+| ---: | :--- | :--- |
+| 5 – 25 | 10 / 10 | HC-AL-30 [L] |
+| 28 | 8 / 10 | HC-AL-30 [L] |
+| 30 | 1 / 10 | HC-AL-30 [L] |
+| 32 | 0 / 10 | — none — |
+
+| deflection limit | allowable | static feasible | selected |
+| :--- | ---: | :--- | :--- |
+| span/500 | 3.000 mm | 10 / 10 | HC-AL-30 [L] |
+| span/750 | 2.000 mm | 10 / 10 | HC-AL-30 [L] |
+| span/1000 | 1.500 mm | 10 / 10 | HC-AL-30 [L] |
+| span/1500 | 1.000 mm | **0 / 10** | — none — |
+| span/2000 | 0.750 mm | 0 / 10 | — none — |
+
+Two findings, both important:
+
+1. **The selection is completely stable.** The same configuration is selected at
+   every frequency threshold and every deflection limit where *anything* is
+   feasible. The result is not an artefact of the placeholder thresholds.
+2. **The static screen is brittle.** Everything passes at span/1000 and nothing
+   passes at span/1500. The placeholder limit controls whether a design exists at
+   all — a limitation of the requirement, not of the candidates.
+
+## Preliminary selection policy
+
+Stated once, applied deterministically, with no hidden judgement:
+
+```
+A. must pass ALL four screens (deflection, global strength, local failure, modal)
+B. among those, minimise panel areal mass
+C. tie-break: larger frequency margin
+D. final tie-break: candidate database order, then L before W
+```
+
+If nothing is feasible the function returns `None` and no selection is made.
+
+## ILLUSTRATIVE PRELIMINARY CORE SELECTION
+
+| field | value |
+| --- | --- |
+| candidate | **HC-AL-30** |
+| orientation | **L** (beam strip aligned with the core ribbon shear direction) |
+| core density | 30.0 kg/m³ |
+| panel areal mass | 2.760 kg/m² |
+| total strip mass | 2.070 kg |
+| first-mode frequency | 31.100 Hz |
+| frequency margin | +6.100 Hz (vs the 25 Hz illustrative requirement) |
+| total deflection at 50 N | 1.3004 mm |
+| closest global screen | deflection (utilisation 0.8669) |
+| local patch utilisation | 0.1333 (independent load case) |
+| feasible configurations | 10 of 10 |
+
+The minimum-mass rule and the modal screen **agree** here rather than trading
+against each other: this configuration is simultaneously the lightest and the
+highest-frequency of the set. That convergence is what makes the choice
+defensible within the model — not the tie-break rules.
+
+> **The selected configuration is an illustrative preliminary choice within this
+> simplified candidate set, not a flight-qualified material selection.** Every
+> material property behind it is illustrative, both thresholds are illustrative,
+> and the model is a simply supported beam strip. It is not a qualified core, a
+> flight-selected material, a certified design, a manufacturer recommendation or an
+> optimised solution.
+
+## Verification summary — Milestone 5
+
+`150 additional tests` (repository total `740`, all passing). The 590 Milestone 1–4
+tests are unchanged and still green; their files are byte-identical to the
+Milestone 4 commit, and the only prior source file touched is `__init__.py`
+(exports and version).
+
+Covered:
+
+- distributed-mass hand calculation, width and density scaling, and the absence of
+  hidden mass terms
+- bending-only `f_1` hand calculation, exact `n²` mode scaling, `sqrt(EI)`,
+  `1/sqrt(mu)` and `1/L²` scaling; mode-number type and range validation
+- the shear-corrected formula by written-out independent arithmetic, and the proof
+  that its correction term equals the static shear/bending compliance ratio
+- corrected `<=` bending-only always; the high-`G` limit approached from below; the
+  `G → 0`, `EI → 0` and mass limits
+- mass changes both frequencies by the same factor and leaves the correction
+  untouched
+- `f_1,L > f_1,W` for every candidate; bending-only bit-for-bit equal between L and
+  W; the frequency ratio strictly between 1 and `G_L/G_W`
+- positive, sorted multi-mode frequencies with the shear penalty growing in `n`
+- requirement validation, PASS, exact-boundary PASS, FAIL, and both margin
+  identities
+- `EI`, candidate masses and **every** Milestone 2–4 static result reproduce
+  byte-identically through the Milestone 5 layer
+- four-way AND feasibility, each screen able to fail it alone, and the four margin
+  families never blended
+- utilisation hand calculations, `<= 1` iff the screen passes, the closest-screen
+  rule, and the local patch kept out of the global comparison
+- deterministic ordering and deterministic selection; minimum-mass policy;
+  selection only among feasible configurations; both tie-breaks; the no-feasible
+  case returning `None`
+- density lowers `f_1` without touching `EI`; `G` raises `f_1` without touching
+  mass or the bending-only value; core depth raises `EI`, mass and `f_1`; core-depth
+  rows match a direct recomputation
+- raising the frequency requirement and tightening the deflection limit can only
+  reduce the feasible count; the selection is stable wherever anything is feasible
+- example smoke test, plus assertions that it never claims more than a preliminary
+  selection
 
 ## Limitations
 
@@ -1177,7 +1512,26 @@ Added by Milestone 4:
 - no adhesive or bondline failure
 - the global and local load cases are independent; no combined-load interaction of
   any kind is modelled
-- **no final core selection has been made**
+
+Added by Milestone 5:
+
+- simply-supported **uniform beam-strip modal model**, one transverse bending plane
+- no plate modes, no torsion, no local face or core modes
+- no discrete equipment masses; distributed self-mass only (no cells, adhesive,
+  harness or mechanisms)
+- no hinge or root compliance, and no spacecraft-bus coupling
+- no damping and no forced response - no sine, random, acoustic or shock analysis
+- no modal effective mass or participation factors
+- rotary inertia neglected, so the shear correction degrades at high mode number;
+  only mode 1 is used as a design screen
+- no thermal preload or stress stiffening, and no geometric nonlinearity
+- the **frequency requirement is illustrative only** - not a launch-provider
+  requirement, not a coupled-loads result, not a qualification threshold
+- **all candidate properties remain illustrative** - stiffness, strength,
+  compression and wrinkling alike
+- the selection is an **illustrative preliminary choice**, not a qualified core, a
+  flight-selected material, a certified design, a manufacturer recommendation or an
+  optimised solution
 - **no certification, qualification or flight-worthiness claim of any kind**
 
 ## Install and test
@@ -1190,9 +1544,10 @@ python examples/sandwich_panel_sanity.py
 python examples/core_candidate_trade.py
 python examples/core_strength_screen.py
 python examples/local_failure_screen.py
+python examples/modal_core_selection.py
 ```
 
-The test suite and all four examples also run without installing (a root `conftest.py`
+The test suite and all five examples also run without installing (a root `conftest.py`
 and a path fallback in each example put `src/` on `sys.path`).
 
 ## Repository layout
@@ -1227,11 +1582,18 @@ src/sandwich_panel/
     local_failure_database.py  illustrative core compression records
     sandwich_screen.py  local failure assessment, global capacity with wrinkling,
                       combined table, retention, patch and core-depth sweeps
-tests/                verification suite (134 M1 + 139 M2 + 160 M3 + 157 M4 = 590)
+  Milestone 5 - modal screening and preliminary selection
+    modal.py          distributed mass, bending-only and shear-corrected
+                      frequencies, FrequencyRequirement
+    modal_selection.py  modal assessment, integrated four-way feasibility,
+                      utilisations, preliminary selection, modal sweeps
+tests/                verification suite
+                      (134 M1 + 139 M2 + 160 M3 + 157 M4 + 150 M5 = 740)
 examples/             sandwich_panel_sanity.py     (Milestone 1)
                       core_candidate_trade.py      (Milestone 2)
                       core_strength_screen.py      (Milestone 3)
                       local_failure_screen.py      (Milestone 4)
+                      modal_core_selection.py      (Milestone 5)
 ```
 
 ## Licensing
@@ -1242,13 +1604,11 @@ licence classifier, so no licence is claimed or implied.
 
 ## Next milestone
 
-Milestone 4 found that the modelled local failure modes do not change candidate
-viability either: every candidate is retained, and deflection still governs. Across
-four milestones the panel has stayed stiffness-critical, which means a defensible
-selection now needs either a stiffness requirement with real authority behind it —
-a modal/frequency requirement rather than an illustrative deflection limit — or the
-modes still out of reach: detailed inserts and potting, thermal distortion, and
-environmental knockdowns. Sourced material data is the other prerequisite: every
-property in this repository is still illustrative.
+The remaining work is portfolio consolidation: final figures, a single consolidated
+README, and a publication pass. That is deliberately not started here.
 
-Nothing here constitutes a core selection.
+Two things would have to change before anything in this repository could inform a
+real core choice: **sourced material data** (every property is still illustrative)
+and **a requirement with real authority behind it** — the 25 Hz threshold and the
+span/1000 deflection limit are both placeholders, and the static one is brittle
+enough that it decides whether a feasible design exists at all.

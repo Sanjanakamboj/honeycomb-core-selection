@@ -219,3 +219,51 @@ def patch_load() -> LocalPatchLoad:
 @pytest.fixture
 def local_basis(wrinkling_model, patch_load) -> LocalScreenBasis:
     return LocalScreenBasis(wrinkling_model=wrinkling_model, patch_load=patch_load)
+
+
+# ---------------------------------------------------------------------------
+# Milestone 5 modal fixtures (additive; Milestone 1-4 fixtures unchanged).
+#
+# On the M2 study basis with the `ortho_core` fixture (rho = 40, G_L = 50 MPa,
+# G_W = 20 MPa):
+#
+#   m_A = 2*2700*0.0004 + 40*0.020 = 2.96 kg/m^2
+#   mu  = m_A * b = 2.96 * 0.5     = 1.48 kg/m
+#   k_1 = pi / 1.5                 = 2.0943951... 1/m
+#   f1_bending = k_1^2 sqrt(EI/mu) / (2 pi)  with EI = 2913.4933333
+#              = 30.97515695 Hz
+#   shear ratio = EI k_1^2 / (kappa G A_s),  A_s = 0.5*0.020 = 0.010 m^2
+#     G_L = 50 MPa -> 0.02556002 -> f1 = 30.58672467 Hz
+#     G_W = 20 MPa -> 0.06390006 -> f1 = 30.03053706 Hz
+# ---------------------------------------------------------------------------
+
+from sandwich_panel import (  # noqa: E402
+    FrequencyRequirement,
+    PreliminaryScreens,
+)
+
+M5_MU = 1.48  # distributed mass [kg/m]
+M5_SHEAR_AREA = 0.010  # A_s [m^2]
+M5_F1_BENDING = 30.9751569464  # [Hz]
+M5_F1_L = 30.5867246668  # [Hz], G_L = 50 MPa
+M5_F1_W = 30.0305370554  # [Hz], G_W = 20 MPa
+M5_FREQ_LIMIT = 25.0  # illustrative requirement [Hz]
+
+
+@pytest.fixture
+def frequency_requirement() -> FrequencyRequirement:
+    return FrequencyRequirement(
+        minimum_frequency_hz=M5_FREQ_LIMIT,
+        mode_number=1,
+        label="illustrative test frequency requirement",
+    )
+
+
+@pytest.fixture
+def screens(requirement, strength_basis, local_basis, frequency_requirement) -> PreliminaryScreens:
+    return PreliminaryScreens(
+        deflection=requirement,
+        strength=strength_basis,
+        local=local_basis,
+        frequency=frequency_requirement,
+    )
