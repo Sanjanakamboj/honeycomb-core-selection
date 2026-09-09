@@ -10,6 +10,10 @@ Preliminary sandwich-panel core selection for a spacecraft solar-panel substrate
 > common sandwich geometry. Strength-based core selection is intentionally
 > deferred.**
 
+> **Milestone 3 adds first-order face-yield and average core-shear screening only.
+> Crushing, wrinkling, local indentation, inserts and other sandwich-specific
+> failure modes remain intentionally deferred.**
+
 ---
 
 ## Objective
@@ -54,11 +58,23 @@ Added in **Milestone 2** (candidate trade framework):
 - a directional core-depth trade
 - preliminary non-dominance (Pareto) screening on mass and deflection
 
-Deliberately **not** implemented yet: final core selection or recommendation,
-core shear strength allowables, core compression and crushing, face yielding,
-face wrinkling, shear crimping, local indentation, insert/potting loads, panel
-buckling, thermal distortion, CTE mismatch, adhesive layers, vibration and modal
-analysis, optimisation, final portfolio plots and publication polish.
+Added in **Milestone 3** (first-order strength screening):
+
+- face-sheet strength record and an explicit, separately held design factor
+- directional honeycomb core shear strengths in L and W
+- preliminary face yield margin and average effective core shear margin
+- per-candidate governing strength mode, computed from the margins
+- combined stiffness + strength feasibility, kept dimensionally separate
+- preliminary central-point-load limits from face, core and deflection
+- directional L/W strength sensitivity, load-level sensitivity and a
+  mass-vs-capacity trade with a load-capacity-to-areal-mass indicator
+
+Deliberately **not** implemented yet: final core selection or recommendation, core
+compression and crushing, face wrinkling, intracell buckling, shear crimping, local
+indentation, contact/bearing stress, insert and potting loads, adhesive failure,
+panel buckling, damage tolerance, fatigue, thermal distortion, CTE mismatch,
+vibration and modal analysis, optimisation, final portfolio plots and publication
+polish.
 
 ## Sandwich idealisation
 
@@ -251,7 +267,7 @@ face thickness buys stiffness and stress margin but pays directly in mass;
 
 ## Verification summary — Milestone 1
 
-`134 tests` (of `273` in the repository), all passing, unchanged since the
+`134 tests` (of `433` in the repository), all passing, unchanged since the
 Milestone 1 commit. Expected values are written as **independent arithmetic** —
 literal formulas or hand-computed constants — rather than by calling the helpers
 under test.
@@ -472,7 +488,7 @@ it is a core-material question. Core depth is **not** optimised in this mileston
 
 ## Verification summary — Milestone 2
 
-`139 additional tests` (repository total `273`, all passing). Milestone 1's 134
+`139 additional tests` (repository total `433`, all passing). Milestone 1's 134
 tests are unchanged and still green; their files are byte-identical to the
 Milestone 1 commit.
 
@@ -508,6 +524,245 @@ Covered:
 - trade example smoke test, plus an assertion that it never prints a selection,
   recommendation or winner
 
+---
+
+# Milestone 3 — first-order strength screening
+
+> **Milestone 3 adds first-order face-yield and average core-shear screening only.
+> Crushing, wrinkling, local indentation, inserts and other sandwich-specific
+> failure modes remain intentionally deferred.**
+
+The engineering question:
+
+> Which candidate cores remain structurally feasible when the common sandwich panel
+> is checked for face-sheet normal stress and directional core shear strength, and
+> how much central-point-load capacity does each candidate retain?
+
+## Why deflection alone was insufficient
+
+Milestone 2 ended with all ten candidate-direction combinations passing the
+`1.5 mm` stiffness screen, so deflection did not discriminate the set. The obvious
+next discriminator is strength — but only two strength checks are actually
+supported by the current beam-strip mechanics, and Milestone 3 implements exactly
+those two and nothing else:
+
+- **face longitudinal normal stress** vs a face allowable
+- **average effective core shear stress** vs a directional core shear strength
+
+There is no through-thickness compression load anywhere in the model, so no core
+crushing check is invented to sit alongside them. No wrinkling equation is added.
+`OrthotropicCoreStrength` deliberately has no compressive-strength attribute, and a
+test asserts that.
+
+## Face yield allowable convention
+
+`FaceStrength(name, yield_strength, ultimate_strength=None, source_note, notes)` is
+**pure material data**. The design factor lives separately, on the study's
+`StrengthBasis`, so a knockdown can never hide inside a material property:
+
+```
+sigma_face_allowable = yield_strength / face_design_factor      (face_design_factor >= 1)
+```
+
+A test asserts `FaceStrength` exposes no design-factor attribute at all. Yield is
+the single allowable basis for Milestone 3; `ultimate_strength` is accepted and
+recorded but never used as a basis, and is not supplied for the shipped record.
+
+## Directional core shear strengths
+
+`OrthotropicCoreStrength(name, shear_strength_L, shear_strength_W, ...)`, using the
+same L/W convention as the Milestone 2 moduli, with the same rule: **L and W are
+never averaged**, and an invalid direction raises.
+
+> **ILLUSTRATIVE STRENGTH INPUT — NOT MANUFACTURER ALLOWABLE.** No verifiable
+> manufacturer strength data was obtained, so every strength value is a
+> representative engineering-study input: not a manufacturer allowable, not a
+> design allowable or A/B-basis value, not qualification data. Every record carries
+> an explicit `source_note`, asserted present by test. Sourced and illustrative
+> values are never blended.
+
+The face record is an illustrative aluminium-like yield strength of **270 MPa**; no
+alloy is claimed, because the elastic face material was never tied to one (a test
+asserts no alloy designation appears in the record).
+
+| candidate | `tau_L` [MPa] | `tau_W` [MPa] | `tau_L/tau_W` |
+| --- | ---: | ---: | ---: |
+| HC-AL-30 | 0.90 | 0.55 | 1.636 |
+| HC-AL-45 | 1.60 | 0.95 | 1.684 |
+| HC-AR-48 | 1.20 | 0.70 | 1.714 |
+| HC-AL-60 | 2.40 | 1.40 | 1.714 |
+| HC-AL-80 | 3.60 | 2.10 | 1.714 |
+
+The strength database is aligned one-to-one with the elastic database — same names,
+same order, no extras — and the module fails at import time if the two ever drift.
+
+## Strength-margin definitions
+
+Both strength margins are dimensionless margins of safety:
+
+```
+MS_face = sigma_allowable / sigma_face,max - 1      preliminary face yield margin
+MS_core = tau_allowable   / tau_core        - 1      average effective core shear margin
+```
+
+`MS >= 0` passes, so exactly reaching the allowable **passes**. These are
+preliminary screening margins, **not certification margins**; `MS_core` in
+particular carries no cell-wall stress fidelity.
+
+The governing strength mode is whichever has the **smaller** margin. It is computed
+from the margins, never assumed — a test sweeps the core allowable so that each
+mode takes a turn governing.
+
+### Stiffness and strength are kept separate
+
+`CandidateDesignAssessment` reports `deflection_feasible`, `strength_feasible` and
+`overall_feasible = deflection_feasible AND strength_feasible`. The deflection
+margin is a **length** and the strength margins are **dimensionless**; they are
+never numerically combined. A test asserts no blended-margin attribute exists.
+
+## Preliminary allowable-load calculation
+
+Every demand in this model is exactly linear in the central point load `P`, so each
+capacity is an exact scaling (the core one also has a closed form):
+
+```
+P_face        = P_ref * sigma_allowable / sigma_face(P_ref)
+P_core        = 2 b t_c tau_allowable                        (closed form)
+P_deflection  = P_ref * delta_allowable / delta_total(P_ref)
+
+P_strength    = min(P_face, P_core)                          strength only
+P_preliminary = min(P_face, P_core, P_deflection)
+```
+
+with the governing constraint reported as `"deflection"`, `"face_yield"` or
+`"core_shear"`. These are **preliminary central-point-load limits** for a
+simplified beam-strip model — not ultimate loads, not limit loads, not design loads
+and not certification allowables. Tests confirm each returned load produces a zero
+margin in its own check, that 0.1 % below passes and 0.1 % above fails, and that
+the capacities are independent of the load the reference response was evaluated at.
+
+## The 50 N screen, and the headline finding
+
+At the Milestone 1–2 study load the demands are `sigma_face,max = 4.6851 MPa` and
+`tau_core = 2.5 kPa` — identical for every candidate, since both depend on geometry
+and load alone.
+
+**All ten candidate-direction combinations pass both screens**, with:
+
+- `MS_face = 56.63` for every candidate (the face limit cannot depend on the core)
+- `MS_core` between `219` (HC-AL-30 W) and `1439` (HC-AL-80 L)
+
+Strength margins are two to three orders of magnitude clear. The strength screen
+**does not discriminate the candidate set**. That is reported as found: the
+illustrative strengths were deliberately not reduced to manufacture a failure or a
+preferred candidate. For core shear even to tie face yield here, the allowable
+would have to fall to about `0.144 MPa` — far below any real honeycomb.
+
+## Allowable-load trade
+
+| candidate | `m_A` [kg/m²] | `P_defl` [N] | `P_face` [N] | `P_core` [N] | `P_prelim` [N] | governing | `P/m_A` [N·m²/kg] |
+| --- | ---: | ---: | ---: | ---: | ---: | :--- | ---: |
+| HC-AL-30 [L] | 2.760 | 57.67 | 2881.5 | 18000 | 57.67 | deflection | 20.90 |
+| HC-AL-45 [L] | 3.060 | 59.83 | 2881.5 | 32000 | 59.83 | deflection | 19.55 |
+| HC-AR-48 [L] | 3.120 | 59.09 | 2881.5 | 24000 | 59.09 | deflection | 18.94 |
+| HC-AL-60 [L] | 3.360 | 60.80 | 2881.5 | 48000 | 60.80 | deflection | 18.10 |
+| HC-AL-80 [L] | 3.760 | 61.36 | 2881.5 | 72000 | 61.36 | deflection | 16.32 |
+| HC-AL-30 [W] | 2.760 | 52.05 | 2881.5 | 11000 | 52.05 | deflection | 18.86 |
+| HC-AL-45 [W] | 3.060 | 56.32 | 2881.5 | 19000 | 56.32 | deflection | 18.41 |
+| HC-AR-48 [W] | 3.120 | 56.65 | 2881.5 | 14000 | 56.65 | deflection | 18.16 |
+| HC-AL-60 [W] | 3.360 | 58.52 | 2881.5 | 28000 | 58.52 | deflection | 17.42 |
+| HC-AL-80 [W] | 3.760 | 60.08 | 2881.5 | 42000 | 60.08 | deflection | 15.98 |
+
+**DEFLECTION governs every candidate in both directions.** The face limit is about
+**50×** the deflection limit and the core-shear limit is **211× to 1173×** it. This
+panel is *stiffness-critical, not strength-critical* — a real and useful negative
+result, and exactly what one expects of a thin, light substrate on a 1.5 m span.
+
+`P_preliminary / m_A` is reported as a `preliminary load-capacity-to-areal-mass
+indicator`: a coarse screening diagnostic, **not** a universal optimisation metric.
+Because deflection governs throughout, it currently just re-expresses the
+Milestone 2 stiffness-per-mass picture — the lightest core, HC-AL-30 [L], leads it
+at 20.90 N·m²/kg while HC-AL-80 [L] has the highest absolute capacity at 61.36 N.
+
+## L/W strength comparison
+
+For a fixed geometry the identity
+
+```
+P_core,L / P_core,W  ==  tau_L / tau_W
+```
+
+holds exactly, and is verified for every candidate. The directional strength
+penalty is real (1.636–1.714×) but **never governs here**; the L/W penalty that
+actually bites is the Milestone 2 *stiffness* one, which moves the overall
+preliminary limit by only 2–11 % because the bending term dominates.
+
+## Load sensitivity
+
+Sweeping HC-AL-45 from 25 N to 3000 N (loads far above the deflection limit shown
+only to locate the crossings, not proposed as design loads): every demand is
+exactly linear in `P`, so the deflection screen fails first, just above ~56–60 N,
+and face yield only at ~2.9 kN (`MS_face = -0.040` at 3000 N). Core shear never
+becomes critical anywhere in the range.
+
+## Core-depth strength observation
+
+| `t_c` [mm] | `m_A` [kg/m²] | `EI` [N·m²] | `P_face` [N] | `P_defl,L` [N] | `P_core,L` [N] | `P_lim,L` [N] | governing |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| 5 | 2.385 | 2.045e+02 | 725.3 | 4.32 | 8000 | 4.32 | deflection |
+| 10 | 2.610 | 7.575e+02 | 1442.8 | 15.84 | 16000 | 15.84 | deflection |
+| 15 | 2.835 | 1.661e+03 | 2161.9 | 34.41 | 24000 | 34.41 | deflection |
+| 20 | 3.060 | 2.913e+03 | 2881.5 | 59.83 | 32000 | 59.83 | deflection |
+| 25 | 3.285 | 4.517e+03 | 3601.2 | 91.92 | 40000 | 91.92 | deflection |
+
+Core depth raises **all three** capacities simultaneously — the deflection limit
+roughly with `t_c²` (through `EI`), and both the face limit and the core-shear
+limit roughly with `t_c` — while core mass grows linearly. Deflection still governs
+throughout, because it starts far lower and even its faster growth does not close
+a ~48× gap over this range. Core depth is **not** optimised here.
+
+## Verification summary — Milestone 3
+
+`160 additional tests` (repository total `433`, all passing). The 273 Milestone 1–2
+tests are unchanged and still green; their files are byte-identical to the
+Milestone 2 commit, and the only prior source file touched is `__init__.py`
+(exports and version).
+
+Covered:
+
+- `FaceStrength` and `OrthotropicCoreStrength` validation: positive, finite, named,
+  immutable; ultimate-below-yield rejected
+- the design factor is not a material property, must be >= 1, and scales the
+  allowable exactly
+- `OrthotropicCoreStrength` exposes no compressive/crush attribute
+- directional strength retrieval, invalid-direction rejection, never averaged
+- face and core margin hand calculations, exact-boundary PASS, fail cases
+- governing mode is the minimum margin, computed not hard-coded, and never
+  reports `deflection`
+- `strength_feasible` is exactly `face_pass AND core_pass`; `overall_feasible` is
+  exactly `deflection AND strength`, with each failing alone
+- length-valued and dimensionless margins are never blended into one number
+- face, core-shear and deflection allowable loads by independent hand arithmetic
+- the closed-form core limit agrees with the linear-scaling form
+- capacities independent of the reference load; face limit direction-independent
+- `P_preliminary` is the minimum of three, with the governing constraint matching;
+  a sweep makes each of the three constraints govern in turn
+- zero margin at each returned load; 0.1 % below passes, 0.1 % above fails
+- strength database aligned one-to-one with the elastic database: same names, same
+  deterministic order, unique, no extras, all positive and finite, provenance
+  present, no alloy claimed
+- `P_core,L / P_core,W == tau_L / tau_W` for every candidate
+- face limit, face stress, face margin, core shear stress, `EI` and bending
+  deflection all identical across every candidate
+- all demands exactly linear in `P`; demand ratios double when `P` doubles
+- core depth raises `EI`, mass, and all three load limits monotonically, and the
+  deflection limit grows faster than the strength limits
+- Milestone 2 candidate results and deflection assessments reproduce byte-identically
+  through the Milestone 3 layer
+- determinism of assessments, tables and sweeps
+- example smoke test, plus assertions that it never prints a selection and never
+  reports a margin for a deferred failure mode
+
 ## Limitations
 
 - symmetric sandwich only; identical face sheets
@@ -540,6 +795,26 @@ Added by Milestone 2:
 - the deflection limit is **illustrative only** and is not a qualification limit
 - the non-dominance screen uses two axes only (mass, deflection) and is not
   optimisation
+
+Added by Milestone 3:
+
+- strength values are **illustrative unless explicitly sourced**; the shipped face
+  and core strength records are uniformly illustrative and labelled as such
+- face **yield only**: no plastic redistribution, no ultimate basis, no
+  ultimate/yield interaction
+- **average** effective core shear stress only, with no cell-wall stress resolution
+- no core compression modulus, no core compression strength, no crushing
+- no face wrinkling allowable and no intracell (dimpling) buckling
+- no shear crimping
+- no local indentation and no contact- or bearing-pressure model
+- no insert or potting loads
+- no adhesive or bondline failure
+- no damage tolerance and no fatigue
+- no environmental, moisture or temperature knockdowns on strength
+- margins are **preliminary screening margins, not certification margins**
+- the preliminary load limits are not ultimate, limit or design loads
+- the load-capacity-to-areal-mass indicator is a screening diagnostic, not an
+  optimisation metric
 - **no final core selection has been made**
 - **no certification, qualification or flight-worthiness claim of any kind**
 
@@ -551,9 +826,10 @@ pip install -e ".[test]"
 pytest
 python examples/sandwich_panel_sanity.py
 python examples/core_candidate_trade.py
+python examples/core_strength_screen.py
 ```
 
-The test suite and both examples also run without installing (a root `conftest.py`
+The test suite and all three examples also run without installing (a root `conftest.py`
 and a path fallback in each example put `src/` on `sys.path`).
 
 ## Repository layout
@@ -576,9 +852,17 @@ src/sandwich_panel/
     requirements.py   DeflectionRequirement / DeflectionAssessment
     trade.py          StudyBasis, candidate evaluation, trade table, dominance,
                       density / shear / core-depth sweeps
-tests/                verification suite (134 Milestone 1 + 139 Milestone 2)
+  Milestone 3 - strength screening
+    strength.py       FaceStrength, OrthotropicCoreStrength, StrengthBasis,
+                      margins, LimitingConstraint
+    strength_database.py  illustrative face and core strength records
+    design_screen.py  strength assessment, preliminary load capacity, combined
+                      design table, load / core-depth capacity sweeps
+tests/                verification suite
+                      (134 Milestone 1 + 139 Milestone 2 + 160 Milestone 3 = 433)
 examples/             sandwich_panel_sanity.py     (Milestone 1)
                       core_candidate_trade.py      (Milestone 2)
+                      core_strength_screen.py      (Milestone 3)
 ```
 
 ## Licensing
@@ -589,7 +873,10 @@ licence classifier, so no licence is claimed or implied.
 
 ## Next milestone
 
-Milestone 3 will introduce core strength allowables and failure screening
-(core shear strength, crushing, face wrinkling and related criteria), which is
-what a genuine selection has to rest on. Nothing in this repository yet
-constitutes a core selection, and the candidate properties remain illustrative.
+Milestone 4 will address the sandwich-specific failure modes that the beam-strip
+model cannot currently reach — core crushing, face wrinkling, shear crimping, local
+indentation and insert/potting loads. Those are *local* modes, and since Milestone 3
+shows this panel to be stiffness-critical rather than strength-critical in its
+global response, they are where a genuine selection is most likely to be decided.
+Nothing in this repository yet constitutes a core selection, and all material
+properties remain illustrative.

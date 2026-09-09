@@ -103,3 +103,60 @@ def ortho_core() -> OrthotropicCoreMaterial:
         family="test",
         source_note="Illustrative test input.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Milestone 3 strength fixtures (additive; Milestone 1-2 fixtures unchanged).
+# The study basis is the same M2 basis, so strength demands are:
+#
+#   sigma_face(P) = (P L / 4)(h/2) / I_faces = P * 0.375 * 0.0104 / 4.1621333e-8
+#                                            = P * 93701.923...  Pa
+#   tau_core(P)   = (P/2) / (b t_c) = P / (2 * 0.010) = P * 50 Pa
+#
+# At the P = 50 N reference load: sigma = 4.6850974 MPa, tau = 2500 Pa.
+# ---------------------------------------------------------------------------
+
+from sandwich_panel import (  # noqa: E402
+    DeflectionRequirement,
+    FaceStrength,
+    OrthotropicCoreStrength,
+    StrengthBasis,
+)
+
+M3_FACE_YIELD = 270.0e6  # illustrative face yield [Pa]
+M3_SIGMA_PER_N = 0.375 * 0.0104 / (2 * (0.5 * 0.0004**3 / 12 + 0.5 * 0.0004 * 0.0102**2))
+M3_TAU_PER_N = 0.5 / (0.5 * 0.020)  # = 50.0 Pa/N
+M3_SIGMA_AT_50N = M3_SIGMA_PER_N * 50.0
+M3_TAU_AT_50N = M3_TAU_PER_N * 50.0  # = 2500 Pa
+
+
+@pytest.fixture
+def face_strength() -> FaceStrength:
+    return FaceStrength(
+        name="illustrative test face",
+        yield_strength=M3_FACE_YIELD,
+        source_note="Illustrative test input.",
+    )
+
+
+@pytest.fixture
+def strength_basis(face_strength) -> StrengthBasis:
+    return StrengthBasis(face_strength=face_strength, face_design_factor=1.0)
+
+
+@pytest.fixture
+def ortho_core_strength() -> OrthotropicCoreStrength:
+    """Strength record matching the ``ortho_core`` fixture (tau_L/tau_W = 2.5)."""
+    return OrthotropicCoreStrength(
+        name="TEST-CORE",
+        shear_strength_L=1.0e6,
+        shear_strength_W=0.4e6,
+        source_note="Illustrative test input.",
+    )
+
+
+@pytest.fixture
+def requirement() -> DeflectionRequirement:
+    return DeflectionRequirement(
+        maximum_total_deflection=1.5e-3, label="illustrative test limit"
+    )

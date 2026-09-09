@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sandwich-panel"
-version = "0.2.0"
+version = "0.3.0"
 description = "Verified sandwich-panel mechanics foundation for honeycomb core selection (STM-10, Milestone 1)."
 readme = "README.md"
 requires-python = ">=3.10"

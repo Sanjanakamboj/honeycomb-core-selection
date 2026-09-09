@@ -9,6 +9,20 @@ SI units throughout.
 from __future__ import annotations
 
 from .core_database import CANDIDATE_CORES, ILLUSTRATIVE_DATA_NOTE, core_names, get_core
+from .design_screen import (
+    CandidateDesignAssessment,
+    CoreDepthCapacityRow,
+    LoadSensitivityRow,
+    PreliminaryLoadCapacity,
+    assess_candidate_design,
+    assess_strength,
+    build_design_table,
+    core_depth_capacity_sweep,
+    is_dominated_by_capacity,
+    load_sensitivity_sweep,
+    pareto_front_by_capacity,
+    preliminary_load_capacity,
+)
 from .directions import CoreShearDirection
 from .geometry import SandwichGeometry
 from .loads import DEFAULT_KAPPA, CentralPointLoadResult, central_point_load_response
@@ -22,6 +36,22 @@ from .materials import (
 from .panel import SandwichPanel
 from .requirements import DeflectionAssessment, DeflectionRequirement
 from .section import Layer, SectionProperties, section_properties
+from .strength import (
+    FaceStrength,
+    LimitingConstraint,
+    OrthotropicCoreStrength,
+    StrengthAssessment,
+    StrengthBasis,
+    core_shear_margin,
+    face_stress_margin,
+)
+from .strength_database import (
+    CANDIDATE_CORE_STRENGTHS,
+    ILLUSTRATIVE_FACE_STRENGTH,
+    ILLUSTRATIVE_STRENGTH_NOTE,
+    core_strength_names,
+    get_core_strength,
+)
 from .sensitivity import (
     CoreDepthRow,
     CoreShearRow,
@@ -45,21 +75,30 @@ from .trade import (
     pareto_front,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "__version__",
+    "assess_candidate_design",
+    "assess_strength",
+    "build_design_table",
     "build_trade_table",
+    "CANDIDATE_CORE_STRENGTHS",
     "CANDIDATE_CORES",
+    "CandidateDesignAssessment",
     "central_point_load_response",
     "CentralPointLoadResult",
     "core_density_sweep",
+    "core_depth_capacity_sweep",
     "core_depth_directional_sweep",
     "core_depth_sweep",
     "core_names",
+    "core_shear_margin",
     "core_shear_modulus_sweep",
     "core_shear_modulus_sweep_at_fixed_density",
+    "core_strength_names",
     "CoreCandidateResult",
+    "CoreDepthCapacityRow",
     "CoreDepthDirectionalRow",
     "CoreDepthRow",
     "CoreMaterial",
@@ -71,21 +110,36 @@ __all__ = [
     "effective_core_shear_modulus",
     "evaluate_candidate",
     "evaluate_candidates",
+    "face_stress_margin",
     "face_thickness_sweep",
     "FaceMaterial",
+    "FaceStrength",
     "FaceThicknessRow",
     "get_core",
+    "get_core_strength",
     "ILLUSTRATIVE_DATA_NOTE",
+    "ILLUSTRATIVE_FACE_STRENGTH",
+    "ILLUSTRATIVE_STRENGTH_NOTE",
     "is_dominated",
+    "is_dominated_by_capacity",
     "Layer",
+    "LimitingConstraint",
+    "load_sensitivity_sweep",
+    "LoadSensitivityRow",
     "mass_properties",
     "MassProperties",
     "OrthotropicCoreMaterial",
+    "OrthotropicCoreStrength",
     "pareto_front",
+    "pareto_front_by_capacity",
+    "preliminary_load_capacity",
+    "PreliminaryLoadCapacity",
     "SandwichGeometry",
     "SandwichPanel",
     "section_properties",
     "SectionProperties",
+    "StrengthAssessment",
+    "StrengthBasis",
     "StudyBasis",
     "TradeRow",
 ]
