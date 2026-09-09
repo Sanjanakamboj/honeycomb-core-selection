@@ -160,3 +160,62 @@ def requirement() -> DeflectionRequirement:
     return DeflectionRequirement(
         maximum_total_deflection=1.5e-3, label="illustrative test limit"
     )
+
+
+# ---------------------------------------------------------------------------
+# Milestone 4 local-failure fixtures (additive; Milestone 1-3 fixtures unchanged).
+#
+# With the M2/M3 study basis and the `ortho_core` fixture (G_L = 50 MPa,
+# G_W = 20 MPa), plus E_c = 500 MPa and C_wr = 0.5:
+#
+#   sigma_wr,L = 0.5 * (70e9 * 500e6 * 50e6)^(1/3) = 0.5 * 1.7500e27^(1/3)
+#   sigma_wr,W = 0.5 * (70e9 * 500e6 * 20e6)^(1/3) = 0.5 * 7.0000e26^(1/3)
+#   sigma_wr,L / sigma_wr,W = (50/20)^(1/3) = 2.5^(1/3) = 1.3572...
+#
+# Canonical test patch: 100 N over 25 x 25 mm
+#   A_patch  = 6.25e-4 m^2
+#   pressure = 100 / 6.25e-4 = 1.6e5 Pa
+#   MS_comp  = 2.0e6 / 1.6e5 - 1 = 11.5
+#   F_crush  = 2.0e6 * 6.25e-4 = 1250 N
+# ---------------------------------------------------------------------------
+
+from sandwich_panel import (  # noqa: E402
+    CoreCompressionProperties,
+    LocalPatchLoad,
+    LocalScreenBasis,
+    WrinklingModel,
+)
+
+M4_E_C = 500.0e6  # core compression modulus [Pa]
+M4_SIGMA_C = 2.0e6  # core compression strength [Pa]
+M4_C_WR = 0.5  # illustrative wrinkling coefficient [-]
+M4_PATCH_FORCE = 100.0  # [N]
+M4_PATCH_SIDE = 0.025  # [m]
+M4_PATCH_AREA = M4_PATCH_SIDE**2  # 6.25e-4 m^2
+M4_PATCH_PRESSURE = M4_PATCH_FORCE / M4_PATCH_AREA  # 1.6e5 Pa
+
+
+@pytest.fixture
+def core_compression() -> CoreCompressionProperties:
+    """Compression record matching the ``ortho_core`` fixture."""
+    return CoreCompressionProperties(
+        name="TEST-CORE",
+        compression_strength=M4_SIGMA_C,
+        compression_modulus=M4_E_C,
+        source_note="Illustrative test input.",
+    )
+
+
+@pytest.fixture
+def wrinkling_model() -> WrinklingModel:
+    return WrinklingModel(coefficient=M4_C_WR, source_note="Illustrative test convention.")
+
+
+@pytest.fixture
+def patch_load() -> LocalPatchLoad:
+    return LocalPatchLoad.square(force=M4_PATCH_FORCE, side=M4_PATCH_SIDE)
+
+
+@pytest.fixture
+def local_basis(wrinkling_model, patch_load) -> LocalScreenBasis:
+    return LocalScreenBasis(wrinkling_model=wrinkling_model, patch_load=patch_load)

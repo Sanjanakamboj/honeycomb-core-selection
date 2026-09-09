@@ -25,6 +25,24 @@ from .design_screen import (
 )
 from .directions import CoreShearDirection
 from .geometry import SandwichGeometry
+from .local_failure import (
+    CoreCompressionProperties,
+    LocalFailureAssessment,
+    LocalFailureMode,
+    LocalPatchLoad,
+    SandwichConstraint,
+    WrinklingModel,
+    core_compression_margin,
+    core_crush_force_limit,
+    wrinkling_margin,
+    wrinkling_screening_stress,
+)
+from .local_failure_database import (
+    CANDIDATE_CORE_COMPRESSION,
+    ILLUSTRATIVE_LOCAL_NOTE,
+    core_compression_names,
+    get_core_compression,
+)
 from .loads import DEFAULT_KAPPA, CentralPointLoadResult, central_point_load_response
 from .mass import MassProperties, mass_properties
 from .materials import (
@@ -35,6 +53,21 @@ from .materials import (
 )
 from .panel import SandwichPanel
 from .requirements import DeflectionAssessment, DeflectionRequirement
+from .sandwich_screen import (
+    CoreDepthWrinklingRow,
+    GlobalSandwichCapacity,
+    LocalPatchSweepRow,
+    LocalScreenBasis,
+    RetentionStatus,
+    SandwichDesignAssessment,
+    assess_local_failure,
+    assess_sandwich_design,
+    build_sandwich_table,
+    core_depth_wrinkling_sweep,
+    global_sandwich_capacity,
+    local_patch_force_sweep,
+    local_patch_size_sweep,
+)
 from .section import Layer, SectionProperties, section_properties
 from .strength import (
     FaceStrength,
@@ -75,32 +108,42 @@ from .trade import (
     pareto_front,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "__version__",
     "assess_candidate_design",
+    "assess_local_failure",
+    "assess_sandwich_design",
     "assess_strength",
     "build_design_table",
+    "build_sandwich_table",
     "build_trade_table",
+    "CANDIDATE_CORE_COMPRESSION",
     "CANDIDATE_CORE_STRENGTHS",
     "CANDIDATE_CORES",
     "CandidateDesignAssessment",
     "central_point_load_response",
     "CentralPointLoadResult",
+    "core_compression_margin",
+    "core_compression_names",
+    "core_crush_force_limit",
     "core_density_sweep",
     "core_depth_capacity_sweep",
     "core_depth_directional_sweep",
     "core_depth_sweep",
+    "core_depth_wrinkling_sweep",
     "core_names",
     "core_shear_margin",
     "core_shear_modulus_sweep",
     "core_shear_modulus_sweep_at_fixed_density",
     "core_strength_names",
     "CoreCandidateResult",
+    "CoreCompressionProperties",
     "CoreDepthCapacityRow",
     "CoreDepthDirectionalRow",
     "CoreDepthRow",
+    "CoreDepthWrinklingRow",
     "CoreMaterial",
     "CoreShearDirection",
     "CoreShearRow",
@@ -116,9 +159,13 @@ __all__ = [
     "FaceStrength",
     "FaceThicknessRow",
     "get_core",
+    "get_core_compression",
     "get_core_strength",
+    "global_sandwich_capacity",
+    "GlobalSandwichCapacity",
     "ILLUSTRATIVE_DATA_NOTE",
     "ILLUSTRATIVE_FACE_STRENGTH",
+    "ILLUSTRATIVE_LOCAL_NOTE",
     "ILLUSTRATIVE_STRENGTH_NOTE",
     "is_dominated",
     "is_dominated_by_capacity",
@@ -126,6 +173,13 @@ __all__ = [
     "LimitingConstraint",
     "load_sensitivity_sweep",
     "LoadSensitivityRow",
+    "local_patch_force_sweep",
+    "local_patch_size_sweep",
+    "LocalFailureAssessment",
+    "LocalFailureMode",
+    "LocalPatchLoad",
+    "LocalPatchSweepRow",
+    "LocalScreenBasis",
     "mass_properties",
     "MassProperties",
     "OrthotropicCoreMaterial",
@@ -134,6 +188,9 @@ __all__ = [
     "pareto_front_by_capacity",
     "preliminary_load_capacity",
     "PreliminaryLoadCapacity",
+    "RetentionStatus",
+    "SandwichConstraint",
+    "SandwichDesignAssessment",
     "SandwichGeometry",
     "SandwichPanel",
     "section_properties",
@@ -142,4 +199,7 @@ __all__ = [
     "StrengthBasis",
     "StudyBasis",
     "TradeRow",
+    "wrinkling_margin",
+    "wrinkling_screening_stress",
+    "WrinklingModel",
 ]
