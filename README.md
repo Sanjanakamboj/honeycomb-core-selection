@@ -6,6 +6,10 @@ Preliminary sandwich-panel core selection for a spacecraft solar-panel substrate
 > **Milestone 1 establishes the verified sandwich-panel mechanics only. Candidate
 > honeycomb materials and final core selection are intentionally deferred.**
 
+> **Milestone 2 compares candidate-core mass and shear-stiffness behaviour under a
+> common sandwich geometry. Strength-based core selection is intentionally
+> deferred.**
+
 ---
 
 ## Objective
@@ -25,7 +29,7 @@ Answer, from the verified model: **yes** — see
 
 ## Current scope
 
-In scope for Milestone 1:
+In scope for **Milestone 1** (mechanics foundation):
 
 - validated face-sheet, core and panel geometry
 - computed sandwich neutral axis and section properties
@@ -39,11 +43,22 @@ In scope for Milestone 1:
 - core-depth, face-thickness and core-shear-modulus sensitivities
 - one representative solar-panel-substrate sanity case
 
-Deliberately **not** implemented yet: candidate core database, final core
-selection, core crushing, face wrinkling, face yielding criteria, local
-indentation, insert/potting loads, shear crimping, panel buckling, vibration and
-modal analysis, thermal gradients, CTE mismatch, adhesive layers, orthotropic
-honeycomb L/W directions, trade ranking, optimisation, portfolio plots.
+Added in **Milestone 2** (candidate trade framework):
+
+- orthotropic core representation with distinct L and W transverse shear moduli
+- explicit, validated panel/core orientation selection
+- a small canonical candidate-core database (illustrative values)
+- candidate-by-candidate sandwich response on one common study basis
+- mass-deflection trade table with an illustrative stiffness screen
+- L-vs-W directional sensitivity, core-density and core-shear sensitivities
+- a directional core-depth trade
+- preliminary non-dominance (Pareto) screening on mass and deflection
+
+Deliberately **not** implemented yet: final core selection or recommendation,
+core shear strength allowables, core compression and crushing, face yielding,
+face wrinkling, shear crimping, local indentation, insert/potting loads, panel
+buckling, thermal distortion, CTE mismatch, adhesive layers, vibration and modal
+analysis, optimisation, final portfolio plots and publication polish.
 
 ## Sandwich idealisation
 
@@ -234,10 +249,11 @@ The sanity example also prints face-thickness and core-shear-modulus sensitiviti
 face thickness buys stiffness and stress margin but pays directly in mass;
 `delta_b` is invariant with `G_c` while `delta_s` scales as `1/G_c`.
 
-## Verification summary
+## Verification summary — Milestone 1
 
-`134 tests, all passing.` Expected values are written as **independent arithmetic**
-— literal formulas or hand-computed constants — rather than by calling the helpers
+`134 tests` (of `273` in the repository), all passing, unchanged since the
+Milestone 1 commit. Expected values are written as **independent arithmetic** —
+literal formulas or hand-computed constants — rather than by calling the helpers
 under test.
 
 Covered:
@@ -258,12 +274,244 @@ Covered:
 - determinism: repeated calculations byte-identical
 - end-to-end smoke test of the sanity example
 
+---
+
+# Milestone 2 — candidate core trade framework
+
+> **Milestone 2 compares candidate-core mass and shear-stiffness behaviour under a
+> common sandwich geometry. Strength-based core selection is intentionally
+> deferred.**
+
+The engineering question:
+
+> How do candidate honeycomb-core density and directional shear stiffness affect
+> sandwich-panel areal mass, total deflection and shear-dominated behaviour for the
+> same face sheets, geometry and transverse load?
+
+## Why real honeycomb needs L and W shear directions
+
+Milestone 1 collapsed the core to a single effective transverse shear modulus
+`G_c`. That is fine for establishing mechanics, but it is not how honeycomb
+behaves and not how it is specified. Honeycomb is strongly orthotropic in
+transverse shear, and datasheets quote two distinct moduli:
+
+- **L** — the ribbon / longitudinal direction, where foil ribbons run and are
+  doubled at the cell bond lines. This is the **stiffer** shear direction.
+- **W** — the transverse / expansion direction, across the ribbons. This is the
+  **softer** direction, typically roughly one third to one half of `G_L`.
+
+Collapsing the two loses a real design decision. For the candidates below, running
+the panel across the ribbon direction instead of along it increases the core shear
+deflection by a factor of 1.9 to 2.8. Orientation therefore has to be a stated,
+validated choice, and the two directions are **never silently averaged** — an L/W
+average has no physical meaning for a strip loaded in one direction.
+
+## Orthotropic candidate representation
+
+`OrthotropicCoreMaterial(name, density, shear_modulus_L, shear_modulus_W,
+family, notes, source_note)`, with all three physical quantities validated
+positive and finite.
+
+The Milestone 1 `CoreMaterial` is **unchanged** — it remains the
+direction-independent effective shear layer, and every Milestone 1 test still
+passes against it byte-for-byte. The two are bridged explicitly:
+
+```
+CoreShearDirection.L | CoreShearDirection.W      # or the strings "L" / "W"
+
+core.shear_modulus(direction)          -> G_L or G_W          [Pa]
+core.directional_shear_ratio           -> G_L / G_W           [-]
+core.specific_shear_stiffness(dir)     -> G_eff / rho_c        [m^2/s^2]
+core.as_effective_core(direction)      -> Milestone 1 CoreMaterial
+effective_core_shear_modulus(core, direction)                  # handles both types
+```
+
+Orientation is resolved **before** the panel is built. `SandwichPanel` still takes
+a Milestone 1 `CoreMaterial` carrying one scalar modulus and knows nothing about
+honeycomb ribbons — it rejects an `OrthotropicCoreMaterial` passed directly rather
+than silently guessing a direction. Any invalid direction (`""`, `"X"`, `"LW"`,
+`"average"`, a number, `None`) raises immediately.
+
+## Candidate database
+
+`src/sandwich_panel/core_database.py` — five candidates spanning two families.
+
+> **ILLUSTRATIVE HONEYCOMB-EQUIVALENT CANDIDATES.** No value below is a
+> manufacturer datasheet value. They are representative engineering-study inputs:
+> **not** manufacturer data, **not** design allowables, **not** qualification or
+> certification data. Every candidate carries an explicit `source_note` recording
+> this, and a test asserts that provenance is present on all of them. The set is
+> uniformly illustrative — sourced and illustrative numbers are never blended. If
+> sourced data is added later it must arrive with its own provenance note.
+
+Magnitudes were screened against the study basis *before* being fixed, to confirm
+the set gives a useful, non-pathological comparison (core shear between ~1 % and
+~16 % of total deflection at a 20 mm core) rather than a degenerate one.
+
+| candidate | family | `rho_c` [kg/m³] | `G_L` [MPa] | `G_W` [MPa] | `G_L/G_W` |
+| --- | --- | ---: | ---: | ---: | ---: |
+| HC-AL-30 | aluminium-equivalent | 30 | 20.0 | 8.0 | 2.50 |
+| HC-AL-45 | aluminium-equivalent | 45 | 40.0 | 15.0 | 2.67 |
+| HC-AR-48 | aramid-paper-equivalent | 48 | 30.0 | 16.0 | 1.88 |
+| HC-AL-60 | aluminium-equivalent | 60 | 70.0 | 25.0 | 2.80 |
+| HC-AL-80 | aluminium-equivalent | 80 | 120.0 | 45.0 | 2.67 |
+
+The aramid-equivalent entry exists so the trade is not one monotonic family: at
+essentially the same density as HC-AL-45 it is softer in shear and less
+anisotropic, which gives the shear-stiffness-to-density indicator something real
+to discriminate.
+
+## Common study basis
+
+Every candidate is evaluated on **one** basis — the Milestone 1 representative
+panel, reused verbatim. Geometry is never tuned per candidate, so this is a clean
+material-property-only comparison:
+
+`L = 1.5 m`, `b = 0.5 m`, `t_f = 0.4 mm`, `t_c = 20 mm`, face `E_f = 70 GPa`,
+`rho_f = 2700 kg/m³`, central point load `P = 50 N` (stiffness demonstration only,
+not a launch or qualification load).
+
+Because the faces carry all the bending stiffness and the core carries none, two
+quantities are **identical for every candidate**:
+
+```
+EI       = 2.9135e+03 N m^2
+delta_b  = 1.2067 mm
+```
+
+Only areal mass (through `rho_c t_c`) and shear deflection (through `G_eff`) move.
+That invariance is asserted bit-for-bit in the tests — it is the backbone of the
+whole trade.
+
+## Deflection requirement
+
+The **only** Milestone 2 feasibility check is `delta_total <= delta_allowable`.
+
+```
+margin            = allowable - actual        [m]   positive is good
+normalised_margin = allowable / actual - 1    [-]   positive is good
+PASS when actual <= allowable                       (exact equality passes)
+```
+
+The limit used is `span/1000 = 1.5 mm`, chosen **by convention** as a common
+precision-structure deflection guideline — deliberately not a number
+reverse-engineered from the candidate results to manufacture a winner. It is an
+`illustrative panel deflection limit` for preliminary stiffness screening. It is
+**not** a qualification limit, verification requirement or certification criterion.
+
+No strength allowable of any kind is applied. Face stress and core shear stress are
+still reported, as **demand diagnostics only** — there is nothing to compare them
+against until a later milestone introduces allowables.
+
+## L-vs-W directional comparison and the mass–deflection trade
+
+`examples/core_candidate_trade.py`. Areal mass and total deflection, with the
+`1.5 mm` illustrative screen:
+
+| candidate | `m_A` [kg/m²] | `G_L` [MPa] | `delta_L` [mm] | shear frac L | `G_W` [MPa] | `delta_W` [mm] | shear frac W | screen |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| HC-AL-30 | 2.760 | 20.0 | 1.3004 | 7.21 % | 8.0 | 1.4410 | 16.26 % | PASS / PASS |
+| HC-AL-45 | 3.060 | 40.0 | 1.2535 | 3.74 % | 15.0 | 1.3317 | 9.39 % | PASS / PASS |
+| HC-AR-48 | 3.120 | 30.0 | 1.2692 | 4.92 % | 16.0 | 1.3239 | 8.85 % | PASS / PASS |
+| HC-AL-60 | 3.360 | 70.0 | 1.2335 | 2.17 % | 25.0 | 1.2817 | 5.85 % | PASS / PASS |
+| HC-AL-80 | 3.760 | 120.0 | 1.2223 | 1.28 % | 45.0 | 1.2483 | 3.34 % | PASS / PASS |
+
+**The screen does not discriminate at this geometry.** All 10 candidate-direction
+combinations pass, because at a 20 mm core the response is bending-dominated
+(`delta_b = 1.2067 mm` against a `1.5 mm` limit, so at most 20 % of the budget is
+available to core shear). That is reported as found. The data was not tuned to
+force a mixed outcome, and the limit was not moved to create one. Where the limit
+*does* bite is core depth: at `t_c <= 15 mm` every candidate fails it (see below).
+
+**Directional penalty.** For a fixed geometry and load the identity
+
+```
+delta_s,W / delta_s,L  ==  G_L / G_W
+```
+
+holds exactly, and is verified numerically for every candidate. The W-direction
+total-deflection penalty ranges from `+0.026 mm` (HC-AL-80) to `+0.141 mm`
+(HC-AL-30) — the softest core is punished hardest by a poor orientation.
+
+**Shear-stiffness-to-density indicator.** `G_eff / rho_c` [m²/s²] is reported as a
+`first-order shear-stiffness-to-density indicator`. It is a coarse screening aid,
+**not** a universal optimisation index and not a ranking on its own — it ignores
+strength, stability, minimum manufacturable density and cost entirely. On `G_L/rho`
+the aluminium-equivalent set rises monotonically (6.67e5 → 1.50e6 m²/s²) while
+HC-AR-48 sits at 6.25e5, below the lighter HC-AL-45 — which is exactly why the
+lightest core is not automatically the best one.
+
+**Non-dominance.** On the two axes *lower areal mass* and *lower total deflection*,
+the L-direction front is HC-AL-30, HC-AL-45, HC-AL-60, HC-AL-80; HC-AR-48 is
+dominated by HC-AL-45 (lighter *and* stiffer). This is a screening aid on two
+stiffness/mass axes only. It is not optimisation and it does not select a core: a
+candidate dominated here may still win once strength, stability, thermal and
+manufacturing criteria enter.
+
+**No core is selected.** Candidates are retained for later strength/failure
+screening.
+
+## Core-depth observation
+
+Sweeping `t_c` for HC-AL-45 in both directions shows core depth acting on **three**
+things simultaneously:
+
+| `t_c` [mm] | `EI` [N m²] | `m_A` [kg/m²] | `delta_b` [mm] | `delta_s,L` [mm] | `delta_s,W` [mm] | `delta_L` [mm] | screen (1.5 mm) |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| 5 | 2.045e+02 | 2.385 | 17.1919 | 0.1875 | 0.5000 | 17.3794 | FAIL |
+| 10 | 7.575e+02 | 2.610 | 4.6411 | 0.0938 | 0.2500 | 4.7349 | FAIL |
+| 15 | 1.661e+03 | 2.835 | 2.1172 | 0.0625 | 0.1667 | 2.1797 | FAIL |
+| 20 | 2.913e+03 | 3.060 | 1.2067 | 0.0469 | 0.1250 | 1.2535 | PASS |
+| 25 | 4.517e+03 | 3.285 | 0.7784 | 0.0375 | 0.1000 | 0.8159 | PASS |
+
+Increasing core depth (i) raises `EI` steeply through face separation, (ii) adds
+core mass linearly, and (iii) **also reduces shear deflection**, because the core
+shear area `A_s = b t_c` grows with it. Points (i) and (iii) both help stiffness;
+only (ii) costs. This is why the deflection screen is a core-depth question before
+it is a core-material question. Core depth is **not** optimised in this milestone.
+
+## Verification summary — Milestone 2
+
+`139 additional tests` (repository total `273`, all passing). Milestone 1's 134
+tests are unchanged and still green; their files are byte-identical to the
+Milestone 1 commit.
+
+Covered:
+
+- orthotropic core validation; positive, finite, named, immutable
+- `G_L` / `G_W` retrieval, including case- and whitespace-tolerant strings
+- invalid-direction rejection (`""`, `"X"`, `"LW"`, `"average"`, numbers, `None`)
+- L and W are never averaged; the error message names both valid directions
+- `G_L/G_W` ratio identity and the `G/rho` indicator, by hand calculation
+- backward compatibility: Milestone 1 `CoreMaterial` unchanged and still usable;
+  the panel still rejects an orthotropic core passed directly
+- database: unique names, no duplicates, deterministic order, all properties
+  positive and finite, provenance metadata present on every candidate, `G_L > G_W`
+  for all, plausible anisotropy band, useful density and stiffness spread, more
+  than one family
+- `EI` and bending deflection bit-for-bit identical across every candidate and
+  direction; face stress and core shear stress likewise
+- areal mass moves only with core density, and is identical between L and W
+- shear deflection moves only with the selected modulus
+- `delta_s,W / delta_s,L == G_L / G_W` for every candidate
+- total-deflection identity; shear fraction strictly in (0, 1)
+- panel-mass consistency; areal-mass hand calculation
+- requirement: pass, fail, exact-boundary pass, margin identity, input validation
+- density sweep: mass linear, every stiffness quantity bit-for-bit unmoved
+- shear sweep: mass and `EI` unmoved, `delta_s` exactly `1/G`, total approaching
+  the bending-only floor
+- core depth: `EI` up, mass up, shear deflection down in both directions, basis
+  not mutated
+- determinism of results, trade tables and sweeps
+- load scaling: all deflection and stress demands linear in `P`; mass, `EI` and
+  shear fraction unaffected
+- trade example smoke test, plus an assertion that it never prints a selection,
+  recommendation or winner
+
 ## Limitations
 
 - symmetric sandwich only; identical face sheets
 - isotropic / isotropic-equivalent face modulus
-- effective isotropic core shear modulus; **no orthotropic L/W honeycomb
-  distinction**
 - core normal-stress bending stiffness neglected
 - perfect bonding assumed; no adhesive layer modelled or mass-accounted
 - no face wrinkling, core crushing, shear crimping or local indentation
@@ -273,7 +521,26 @@ Covered:
 - no vibration or modal analysis
 - small-deflection linear elasticity only
 - beam-strip model, not a two-dimensional plate model
-- all material and geometry values in the example are illustrative placeholders
+- all material and geometry values in the examples are illustrative placeholders
+
+Added by Milestone 2:
+
+- candidate core properties are **illustrative unless explicitly sourced**; the
+  shipped database is uniformly illustrative and labelled as such
+- transverse shear is represented by **L and W moduli only** — there is no full
+  orthotropic constitutive tensor
+- no core compression (through-thickness) modulus
+- no core shear strength, and no core compression strength
+- no face wrinkling allowable
+- no core crushing, shear crimping or local indentation
+- no moisture or environmental knockdowns
+- no temperature dependence of any core property
+- no minimum manufacturable density or other producibility constraint
+- no cell size, foil gauge, perforation or splice-line representation
+- the deflection limit is **illustrative only** and is not a qualification limit
+- the non-dominance screen uses two axes only (mass, deflection) and is not
+  optimisation
+- **no final core selection has been made**
 - **no certification, qualification or flight-worthiness claim of any kind**
 
 ## Install and test
@@ -283,25 +550,35 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[test]"
 pytest
 python examples/sandwich_panel_sanity.py
+python examples/core_candidate_trade.py
 ```
 
-The test suite and the example also run without installing (a root `conftest.py`
-and a path fallback in the example put `src/` on `sys.path`).
+The test suite and both examples also run without installing (a root `conftest.py`
+and a path fallback in each example put `src/` on `sys.path`).
 
 ## Repository layout
 
 ```
 src/sandwich_panel/
+  Milestone 1 - mechanics
     validation.py     shared positive/finite validators
-    materials.py      FaceMaterial, CoreMaterial
+    materials.py      FaceMaterial, CoreMaterial  (+ Milestone 2 additions)
     geometry.py       SandwichGeometry
     section.py        neutral axis, second moments, EI
     mass.py           areal mass and strip mass
     loads.py          central-point-load response
     panel.py          SandwichPanel (assembly + load cases)
     sensitivity.py    core-depth / face-thickness / core-shear sweeps
-tests/                verification suite
-examples/             sandwich_panel_sanity.py
+  Milestone 2 - candidate trade
+    directions.py     CoreShearDirection (L / W) convention
+    materials.py      OrthotropicCoreMaterial, effective_core_shear_modulus
+    core_database.py  illustrative candidate cores
+    requirements.py   DeflectionRequirement / DeflectionAssessment
+    trade.py          StudyBasis, candidate evaluation, trade table, dominance,
+                      density / shear / core-depth sweeps
+tests/                verification suite (134 Milestone 1 + 139 Milestone 2)
+examples/             sandwich_panel_sanity.py     (Milestone 1)
+                      core_candidate_trade.py      (Milestone 2)
 ```
 
 ## Licensing
@@ -312,5 +589,7 @@ licence classifier, so no licence is claimed or implied.
 
 ## Next milestone
 
-Milestone 2 will introduce candidate honeycomb cores and the comparative trade.
-Nothing in this repository yet constitutes a core selection.
+Milestone 3 will introduce core strength allowables and failure screening
+(core shear strength, crushing, face wrinkling and related criteria), which is
+what a genuine selection has to rest on. Nothing in this repository yet
+constitutes a core selection, and the candidate properties remain illustrative.
